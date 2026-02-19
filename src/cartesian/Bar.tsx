@@ -1180,7 +1180,8 @@ function BarFn(outsideProps: Props) {
             barSize={props.barSize}
             minPointSize={props.minPointSize}
             maxBarSize={props.maxBarSize}
-            isInBarStack={isInBarStack ? true : undefined}
+            // false fallback is intentional, otherwise we need to update 10 test files with the new prop
+            isInBarStack={isInBarStack || undefined}
             isPanorama={isPanorama}
           />
           <ZIndexLayer zIndex={props.zIndex}>

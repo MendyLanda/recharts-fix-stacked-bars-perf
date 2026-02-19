@@ -66,6 +66,11 @@ export const useStackId = (childStackId: StackId | undefined): NormalizedStackId
   return getNormalizedStackId(childStackId);
 };
 
+/**
+ * Returns whether the current component is rendered inside a BarStack.
+ * @returns `true` when BarStack context is available, otherwise `false`.
+ * @consumes BarStackContext
+ */
 export const useIsInBarStack = (): boolean => useContext(BarStackContext) != null;
 
 export const defaultBarStackProps = {
