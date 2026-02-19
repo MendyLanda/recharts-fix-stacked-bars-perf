@@ -84,7 +84,7 @@ import { DefaultZIndexes } from '../zIndex/DefaultZIndexes';
 import { getZIndexFromUnknown } from '../zIndex/getZIndexFromUnknown';
 import { propsAreEqual } from '../util/propsAreEqual';
 import { AxisId } from '../state/cartesianAxisSlice';
-import { BarStackClipLayer, useStackId } from './BarStack';
+import { BarStackClipLayer, useIsInBarStack, useStackId } from './BarStack';
 import { GraphicalItemId } from '../state/graphicalItemsSlice';
 import { ChartData } from '../state/chartDataSlice';
 
@@ -1000,7 +1000,7 @@ function BarImpl(props: BarImplProps) {
 
 export function computeBarRectangles({
   layout,
-  barSettings: { dataKey, minPointSize: minPointSizeProp },
+  barSettings: { dataKey, minPointSize: minPointSizeProp, isInBarStack = false },
   pos,
   bandSize,
   xAxis,
@@ -1107,8 +1107,17 @@ export function computeBarRectangles({
         }
       }
 
-      // Filter out 0-dimension rectangles early to avoid creating unnecessary component trees
-      if (x == null || y == null || width == null || height == null || width === 0 || height === 0) {
+      /*
+       * Filter out 0-dimension rectangles early to avoid creating unnecessary component trees.
+       * BarStack clip-path calculations need these zero-size entries to preserve existing stack rounding behavior.
+       */
+      if (
+        x == null ||
+        y == null ||
+        width == null ||
+        height == null ||
+        (!isInBarStack && (width === 0 || height === 0))
+      ) {
         return null;
       }
 
@@ -1138,6 +1147,7 @@ function BarFn(outsideProps: Props) {
   const props = resolveDefaultProps(outsideProps, defaultBarProps);
   // stackId may arrive from props or from BarStack context
   const stackId = useStackId(props.stackId);
+  const isInBarStack = useIsInBarStack();
   const isPanorama = useIsPanorama();
   // Report all props to Redux store first, before calling any hooks, to avoid circular dependencies.
   return (
@@ -1170,6 +1180,7 @@ function BarFn(outsideProps: Props) {
             barSize={props.barSize}
             minPointSize={props.minPointSize}
             maxBarSize={props.maxBarSize}
+            isInBarStack={isInBarStack ? true : undefined}
             isPanorama={isPanorama}
           />
           <ZIndexLayer zIndex={props.zIndex}>

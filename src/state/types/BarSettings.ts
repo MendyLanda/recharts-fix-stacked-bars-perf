@@ -7,4 +7,5 @@ export type BarSettings = BaseCartesianGraphicalItemSettings &
     type: 'bar';
     maxBarSize: number | undefined;
     minPointSize: MinPointSize;
+    isInBarStack?: boolean;
   };

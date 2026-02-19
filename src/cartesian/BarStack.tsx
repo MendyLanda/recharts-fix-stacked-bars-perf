@@ -66,6 +66,8 @@ export const useStackId = (childStackId: StackId | undefined): NormalizedStackId
   return getNormalizedStackId(childStackId);
 };
 
+export const useIsInBarStack = (): boolean => useContext(BarStackContext) != null;
+
 export const defaultBarStackProps = {
   radius: 0,
 } as const satisfies Partial<BarStackProps>;

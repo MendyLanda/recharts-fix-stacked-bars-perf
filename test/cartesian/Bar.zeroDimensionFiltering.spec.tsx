@@ -7,7 +7,7 @@
  */
 import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { Bar, BarChart, XAxis, YAxis } from '../../src';
+import { Bar, BarChart, BarStack, XAxis, YAxis } from '../../src';
 import { createSelectorTestCase, rechartsTestRender } from '../helper/createSelectorTestCase';
 import { selectBarRectangles } from '../../src/state/selectors/barSelectors';
 import { getAllBars } from '../helper/expectBars';
@@ -42,6 +42,34 @@ function generateSparseStackedData(totalCategories: number, nonZeroCount: number
 }
 
 describe('Bar zero-dimension filtering', () => {
+  it('should keep zero-dimension rectangles for BarStack clip-path calculations', () => {
+    const data = [
+      { category: 'A', stackA: -100, stackB: 60, stackC: 40 },
+      { category: 'B', stackA: 80, stackB: -30, stackC: 20 },
+    ];
+
+    const renderTestCase = createSelectorTestCase(({ children }) => (
+      <BarChart width={300} height={200} data={data} stackOffset="positive">
+        <XAxis dataKey="category" />
+        <YAxis />
+        <BarStack>
+          <Bar id="bar-a" dataKey="stackA" fill="#8884d8" isAnimationActive={false} />
+          <Bar id="bar-b" dataKey="stackB" fill="#82ca9d" isAnimationActive={false} />
+          <Bar id="bar-c" dataKey="stackC" fill="#ffc658" isAnimationActive={false} />
+        </BarStack>
+        {children}
+      </BarChart>
+    ));
+
+    const { spy } = renderTestCase(state => selectBarRectangles(state, 'bar-a', false, undefined));
+    const rectangles = spy.mock.lastCall?.[0] ?? [];
+
+    expect(rectangles.length).toBe(2);
+    expect(rectangles.some((rect: { width: number; height: number }) => rect.width === 0 || rect.height === 0)).toBe(
+      true,
+    );
+  });
+
   it('should filter out zero-dimension rectangles from selectBarRectangles', () => {
     const totalCategories = 100;
     const nonZeroCategories = 10;
