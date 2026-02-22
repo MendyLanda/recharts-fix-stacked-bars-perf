@@ -42,7 +42,7 @@ function generateSparseStackedData(totalCategories: number, nonZeroCount: number
 }
 
 describe('Bar zero-dimension filtering', () => {
-  it('should keep zero-dimension rectangles for BarStack clip-path calculations', () => {
+  it('should filter zero-dimension rectangles inside BarStack and preserve originalDataIndex', () => {
     const data = [
       { category: 'A', stackA: -100, stackB: 60, stackC: 40 },
       { category: 'B', stackA: 80, stackB: -30, stackC: 20 },
@@ -64,10 +64,39 @@ describe('Bar zero-dimension filtering', () => {
     const { spy } = renderTestCase(state => selectBarRectangles(state, 'bar-a', false, undefined));
     const rectangles = spy.mock.lastCall?.[0] ?? [];
 
-    expect(rectangles.length).toBe(2);
-    expect(rectangles.some((rect: { width: number; height: number }) => rect.width === 0 || rect.height === 0)).toBe(
-      true,
+    expect(rectangles.length).toBe(1);
+    expect(rectangles[0]).toEqual(
+      expect.objectContaining({
+        originalDataIndex: 1,
+      }),
     );
+    expect(rectangles.some((rect: { width: number; height: number }) => rect.width === 0 || rect.height === 0)).toBe(
+      false,
+    );
+  });
+
+  it('should keep BarStack clip-path indices aligned after filtering sparse rectangles', () => {
+    const data = [
+      { category: 'A', stackA: 0 },
+      { category: 'B', stackA: 12 },
+    ];
+
+    const { container } = rechartsTestRender(
+      <BarChart width={300} height={200} data={data}>
+        <XAxis dataKey="category" />
+        <YAxis />
+        <BarStack stackId="sparse-stack" radius={8}>
+          <Bar dataKey="stackA" fill="#8884d8" isAnimationActive={false} />
+        </BarStack>
+      </BarChart>,
+    );
+
+    const clippedBarLayers = container.querySelectorAll('.recharts-bar-rectangle[clip-path]');
+    expect(clippedBarLayers).toHaveLength(1);
+    expect(clippedBarLayers[0].getAttribute('clip-path')).toBe('url(#recharts-bar-stack-clip-path-sparse-stack-1)');
+
+    expect(container.querySelector('clipPath#recharts-bar-stack-clip-path-sparse-stack-1')).not.toBeNull();
+    expect(container.querySelector('clipPath#recharts-bar-stack-clip-path-sparse-stack-0')).toBeNull();
   });
 
   it('should filter out zero-dimension rectangles from selectBarRectangles', () => {

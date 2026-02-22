@@ -84,7 +84,7 @@ import { DefaultZIndexes } from '../zIndex/DefaultZIndexes';
 import { getZIndexFromUnknown } from '../zIndex/getZIndexFromUnknown';
 import { propsAreEqual } from '../util/propsAreEqual';
 import { AxisId } from '../state/cartesianAxisSlice';
-import { BarStackClipLayer, useIsInBarStack, useStackId } from './BarStack';
+import { BarStackClipLayer, useStackId } from './BarStack';
 import { GraphicalItemId } from '../state/graphicalItemsSlice';
 import { ChartData } from '../state/chartDataSlice';
 
@@ -112,8 +112,8 @@ export interface BarRectangleItem extends RectangleProps {
    */
   stackedBarStart: number;
   /**
-   * The index in the original data array before filtering null values.
-   * Used for matching with activeIndex from tooltip.
+   * Stable pre-filter index within the currently displayed data slice.
+   * Used for matching with activeIndex from tooltip and for BarStack clip-path indexing.
    */
   originalDataIndex: number;
 }
@@ -591,9 +591,9 @@ function BarRectangleWithActiveState(props: {
    *
    * With shared Tooltip, the activeDataKey is undefined.
    *
-   * We use entry.originalDataIndex to match against activeIndex because the index parameter
-   * is based on the filtered array, but activeIndex is based on the original data array.
-   * When there are null values in the data, these indices can differ.
+   * We use entry.originalDataIndex to match against activeIndex because the render index parameter
+   * is based on the filtered array, while activeIndex is based on the pre-filter displayed data slice.
+   * When entries are filtered out (for example null/zero-dimension bars), these indices can differ.
    */
   const isActive: boolean =
     activeBar &&
@@ -665,7 +665,7 @@ function BarRectangleWithActiveState(props: {
   if (shouldRenderInLayer) {
     return (
       <ZIndexLayer zIndex={DefaultZIndexes.activeBar}>
-        <BarStackClipLayer index={index}>{content}</BarStackClipLayer>
+        <BarStackClipLayer index={entry.originalDataIndex}>{content}</BarStackClipLayer>
       </ZIndexLayer>
     );
   }
@@ -723,7 +723,7 @@ function BarRectangles({
       {data.map((entry: BarRectangleItem, i: number) => {
         return (
           <BarStackClipLayer
-            index={i}
+            index={entry.originalDataIndex}
             // https://github.com/recharts/recharts/issues/5415
             key={`rectangle-${entry?.x}-${entry?.y}-${entry?.value}-${i}`}
             className="recharts-bar-rectangle"
@@ -1000,7 +1000,7 @@ function BarImpl(props: BarImplProps) {
 
 export function computeBarRectangles({
   layout,
-  barSettings: { dataKey, minPointSize: minPointSizeProp, isInBarStack = false },
+  barSettings: { dataKey, minPointSize: minPointSizeProp },
   pos,
   bandSize,
   xAxis,
@@ -1109,15 +1109,9 @@ export function computeBarRectangles({
 
       /*
        * Filter out 0-dimension rectangles early to avoid creating unnecessary component trees.
-       * BarStack clip-path calculations need these zero-size entries to preserve existing stack rounding behavior.
+       * BarStack clip-paths use originalDataIndex, so sparse filtered arrays remain index-stable.
        */
-      if (
-        x == null ||
-        y == null ||
-        width == null ||
-        height == null ||
-        (!isInBarStack && (width === 0 || height === 0))
-      ) {
+      if (x == null || y == null || width == null || height == null || width === 0 || height === 0) {
         return null;
       }
 
@@ -1147,7 +1141,6 @@ function BarFn(outsideProps: Props) {
   const props = resolveDefaultProps(outsideProps, defaultBarProps);
   // stackId may arrive from props or from BarStack context
   const stackId = useStackId(props.stackId);
-  const isInBarStack = useIsInBarStack();
   const isPanorama = useIsPanorama();
   // Report all props to Redux store first, before calling any hooks, to avoid circular dependencies.
   return (
@@ -1180,8 +1173,6 @@ function BarFn(outsideProps: Props) {
             barSize={props.barSize}
             minPointSize={props.minPointSize}
             maxBarSize={props.maxBarSize}
-            // false fallback is intentional, otherwise we need to update 10 test files with the new prop
-            isInBarStack={isInBarStack || undefined}
             isPanorama={isPanorama}
           />
           <ZIndexLayer zIndex={props.zIndex}>
